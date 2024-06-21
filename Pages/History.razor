@@ -1,0 +1,118 @@
+﻿@page "/history"
+@using MauiApp2.Data
+@using Microsoft.Data.SqlClient
+
+<center>
+    <h3>Library Member Transaction History</h3>
+</center>
+<br />
+<form>
+    <div class="row">
+        <div class="col">
+            <label for="accountNumberInput">Account Number:</label>
+            <input type="text" class="form-control form-control-sm" id="accountNumberInput" placeholder="Enter Account Number" @bind="@accountNumberValue">
+        </div>
+    </div>
+
+    <br />
+    <button type="button" class="btn btn-primary btn-lg btn-block" @onclick="SearchUserHistory">Search History</button>
+</form>
+<br />
+
+@* Account number search in the transaction table in database output *@
+
+@if (userHistory != null && userHistory.Any())
+{
+    <h4>Transactions for Account Number: @accountNumberValue</h4>
+    <table class="table">
+        <thead>
+            <tr>
+                <th>ISBN</th>
+                <th>Action</th>
+                <th>Date Checked</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var transaction in userHistory)
+            {
+                <tr>
+                    <td>@transaction.Isbn</td>
+                    <td>@transaction.Action</td>
+                    <td>@transaction.DateTimeChecked</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+else if (searchPerformed)
+{
+    <p>No transaction history found for the specified account number.</p>
+}
+
+@code {
+    private string accountNumberValue;
+    private List<DTransaction> userHistory;
+    private bool searchPerformed = false;
+
+    private void SearchUserHistory()
+    {
+        try
+        {
+            int parsedAccountNumber;
+            if (!int.TryParse(accountNumberValue, out parsedAccountNumber))
+            {
+                // Handle invalid account number
+                return;
+            }
+
+            userHistory = GetUserHistory(parsedAccountNumber);
+
+            searchPerformed = true;
+        }
+        catch (Exception ex)
+        {
+
+            Console.WriteLine(ex.Message);
+        }
+    }
+
+    private List<DTransaction> GetUserHistory(int accountNumber)
+    {
+        try
+        {
+            string connectString = "Data Source=(localdb)\\MSSQLLocalDB;Initial Catalog=Library;Integrated Security=True";
+            List<DTransaction> transactions = new List<DTransaction>();
+
+            using (SqlConnection connect = new SqlConnection(connectString))
+            {
+                connect.Open();
+
+                using (SqlCommand cmd = new SqlCommand("SELECT Isbn, Action, DateTimeChecked FROM [Transaction] WHERE AccountNumber = @AccountNumber", connect))
+                {
+                    cmd.Parameters.AddWithValue("@AccountNumber", accountNumber);
+
+                    using (SqlDataReader reader = cmd.ExecuteReader())
+                    {
+                        while (reader.Read())
+                        {
+                            int isbn = reader.GetInt32(0);
+                            string action = reader.GetString(1);
+                            DateTime dateTimeChecked = reader.GetDateTime(2);
+
+                            transactions.Add(new DTransaction(accountNumber, isbn, action, dateTimeChecked));
+                        }
+                    }
+                }
+            }
+
+            return transactions;
+        }
+        catch (Exception ex)
+        {
+
+            Console.WriteLine(ex.Message);
+            return null;
+        }
+    }
+}
+

@@ -1,0 +1,138 @@
+﻿@page "/book"
+@using MauiApp2.Data
+@using Microsoft.Data.SqlClient
+
+
+<center>
+	<h3>Add a Book to the Collection</h3>
+</center>
+<br />
+<form>
+	<div class="row">
+		<div class="col">
+			<label for="validationDefault04">ISBN:</label>
+			<input type="int" class="form-control form-control-sm" id="bookID" placeholder="Numbers only" @bind="book.Isbn">
+			@* validation all fields must be filled *@
+			@if (book.Isbn <= 0)
+			{
+				<p class="text-danger">ISBN is required.</p>
+			}
+		</div>
+		<div class="col">
+			<label for="validationDefault05">Title:</label>
+			<input type="text" class="form-control form-control-sm" id="title" placeholder="Title" @bind="book.Title">
+			@* validation all fields must be filled *@
+			@if (string.IsNullOrEmpty(book.Title))
+			{
+				<p class="text-danger">Title is required.</p>
+			}
+		</div>
+		<div class="col">
+			<label for="validationDefault05">Author:</label>
+			<input type="text" class="form-control form-control-sm" id="author" placeholder="Author full name" @bind="book.Author">
+			@* validation all fields must be filled *@
+			@if (string.IsNullOrEmpty(book.Author))
+			{
+				<p class="text-danger">Author is required.</p>
+			}
+		</div>
+	</div>
+	<br />
+	<button type="button" class="btn btn-primary btn-lg btn-block" @onclick="AddNewBook">Add Book</button>
+</form>
+
+<br />
+<br />
+
+<center>
+	<h3>Remove Book</h3>
+</center>
+<br />
+<form>
+	<div class="row">
+		<div class="col">
+			<label for="isbnToRemove">ISBN to Remove:</label>
+			<input type="int" class="form-control form-control-sm" id="isbnToRemove" placeholder="Enter ISBN" name="isbnToRemove" @bind="@isbnToRemove">
+		</div>
+	</div>
+	<br />
+	<button type="button" class="btn btn-danger btn-lg btn-block" @onclick="RemoveBook">Remove Book</button>
+</form>
+
+@code {
+	private DBook book = new DBook();
+
+
+
+	private async void AddNewBook()
+	{
+		DBook newBook = new DBook();
+		newBook.Isbn = book.Isbn;
+		newBook.Title = book.Title;
+		newBook.Author = book.Author;
+		// Set the book as available in bool format
+		newBook.IsAvailable = true; 
+
+		NewBook(newBook);
+
+		await Application.Current.MainPage.DisplayAlert("Success", "Book Successfully added", "OK");
+	}
+
+	public void NewBook(DBook newBook)
+	{
+		string connectbooks = "Data Source=(localdb)\\MSSQLLocalDB;Initial Catalog=Library;Integrated Security=True";
+		using (SqlConnection connect = new SqlConnection(connectbooks))
+		{
+			connect.Open();
+
+			using (SqlCommand cmd = new SqlCommand("INSERT INTO BOOK (Isbn, Title, Author, IsAvailable) VALUES (@Isbn, @Title, @Author, @IsAvailable)", connect))
+			{
+				cmd.Parameters.AddWithValue("@Isbn", newBook.Isbn);
+				cmd.Parameters.AddWithValue("@Title", newBook.Title);
+				cmd.Parameters.AddWithValue("@Author", newBook.Author);
+				cmd.Parameters.AddWithValue("@IsAvailable", newBook.IsAvailable);
+
+				cmd.ExecuteNonQuery();
+			}
+		}
+	}
+
+
+	private int isbnToRemove;
+
+	private async void RemoveBook()
+	{
+		bool success = RemoveBookByISBN(isbnToRemove);
+
+		if (success)
+		{
+			await Application.Current.MainPage.DisplayAlert("Success", "Book Successfully removed", "OK");
+		}
+		else
+		{
+			await Application.Current.MainPage.DisplayAlert("Error", "Failed to remove the book", "OK");
+		}
+	}
+
+	public bool RemoveBookByISBN(int isbnToRemove)
+	{
+		string connectBooks = "Data Source=(localdb)\\MSSQLLocalDB;Initial Catalog=Library;Integrated Security=True";
+
+		using (SqlConnection connect = new SqlConnection(connectBooks))
+		{
+			connect.Open();
+
+			using (SqlCommand cmd = new SqlCommand("DELETE FROM BOOK WHERE Isbn = @Isbn", connect))
+			{
+				cmd.Parameters.AddWithValue("@Isbn", isbnToRemove);
+
+				// ExecuteNonQuery returns the number of rows affected
+				int rowsAffected = cmd.ExecuteNonQuery();
+
+				// Check if any rows were affected to determine success
+				return rowsAffected > 0;
+			}
+		}
+	}
+
+}

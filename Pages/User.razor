@@ -1,0 +1,95 @@
+﻿@page "/adduser"
+@using MauiApp2.Data
+@using Microsoft.Data.SqlClient
+
+<center>
+<h3>Add a New User</h3>
+</center>
+<br />
+<form>
+    <div class="row">
+        <div class="col">
+            <label for="userName">User Name:</label>
+            <input type="text" class="form-control form-control-sm" id="userName" placeholder="Enter User Name" @bind="@newUser.Name" required>
+        </div>
+        <div class="col">
+            <label for="userPhone">Phone Number:</label>
+            <input type="text" class="form-control form-control-sm" id="userPhone" placeholder="Enter Phone Number" @bind="@newUser.Phone" required>
+        </div>
+    </div>
+
+    <br />
+
+    <button type="button" class="btn btn-primary btn-lg btn-block" @onclick="AddNewUser">Create User</button>
+
+    @if (createdAccountNumber.HasValue)
+    {
+        <p>Generated Account Number: @createdAccountNumber</p>
+    }
+</form>
+
+@code {
+
+    private DUser newUser = new DUser();
+    private int? createdAccountNumber;
+
+    private async void AddNewUser()
+    {
+        DUser userToAdd = new DUser
+            {
+                AccountNumber = GenerateRandomAccountNumber(),
+                Name = newUser.Name,
+                Phone = newUser.Phone
+            };
+
+        bool success = AddUser(userToAdd);
+
+        if (success)
+        {
+            createdAccountNumber = userToAdd.AccountNumber;
+
+            await Application.Current.MainPage.DisplayAlert("Success", "User Successfully added. Generated Account Number: " + createdAccountNumber, "OK");
+        }
+        else
+        {
+            await Application.Current.MainPage.DisplayAlert("Error", "Failed to add the user", "OK");
+        }
+    }
+
+    private int GenerateRandomAccountNumber()
+    {
+        // Generate a random 12-digit account number int
+        Random random = new Random();
+        return random.Next(100000000, 999999999);
+    }
+
+    public bool AddUser(DUser user)
+    {
+        string connectUsers = "Data Source=(localdb)\\MSSQLLocalDB;Initial Catalog=Library;Integrated Security=True";
+
+        try
+        {
+            using (SqlConnection connect = new SqlConnection(connectUsers))
+            {
+                connect.Open();
+
+                using (SqlCommand cmd = new SqlCommand("INSERT INTO [user] (AccountNumber, Name, Phone) VALUES (@AccountNumber, @Name, @Phone)", connect))
+                {
+                    cmd.Parameters.AddWithValue("@AccountNumber", user.AccountNumber);
+                    cmd.Parameters.AddWithValue("@Name", user.Name);
+                    cmd.Parameters.AddWithValue("@Phone", user.Phone);
+
+                    cmd.ExecuteNonQuery();
+                }
+            }
+
+            return true;
+        }
+        catch (Exception ex)
+        {
+            // Log the exception message
+            Console.WriteLine(ex.Message);
+            return false;
+        }
+    }
+}

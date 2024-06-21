@@ -1,0 +1,103 @@
+﻿@page "/checkin"
+@using MauiApp2.Data
+@using Microsoft.Data.SqlClient
+
+<center>
+    <h3>Check In</h3>
+</center>
+<br />
+
+<form>
+    <div class="row">
+        <div class="col">
+            <label for="isbnInput">ISBN:</label>
+            <input type="text" class="form-control form-control-sm" id="isbnInput" placeholder="Enter ISBN" @bind="@isbnValue">
+        </div>
+        <div class="col">
+            <label for="accountNumberInput">Account Number:</label>
+            <input type="text" class="form-control form-control-sm" id="accountNumberInput" placeholder="Enter Account Number" @bind="@accountNumberValue">
+        </div>
+    </div>
+
+    <br />
+
+    <button type="button" class="btn btn-primary btn-lg btn-block" @onclick="PerformCheckIn">Check-In</button>
+</form>
+
+@code {
+    private string isbnValue;
+    private string accountNumberValue;
+
+    
+    private async void PerformCheckIn()
+    {
+        try
+        {
+            int parsedIsbn;
+            if (!int.TryParse(isbnValue, out parsedIsbn))
+            {
+                //invalid ISBN
+                return;
+            }
+
+            int parsedAccountNumber;
+            if (!int.TryParse(accountNumberValue, out parsedAccountNumber))
+            {
+                //invalid account number
+                return;
+            }
+            bool success = CheckinBook(parsedAccountNumber, parsedIsbn);
+
+            if (success)
+            {
+                await Application.Current.MainPage.DisplayAlert("Success", "Book successfully checked in", "OK");
+            }
+            else
+            {
+                await Application.Current.MainPage.DisplayAlert("Error", "Failed to check in the book", "OK");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine(ex.Message);
+        }
+    }
+
+    private bool CheckinBook(int accountNumber, int isbn)
+    {
+        try
+        {
+            string connectString = "Data Source=(localdb)\\MSSQLLocalDB;Initial Catalog=Library;Integrated Security=True";
+
+            using (SqlConnection connect = new SqlConnection(connectString))
+            {
+                connect.Open();
+
+                //Insert a record into the Transaction table
+                using (SqlCommand cmdInsertTransaction = new SqlCommand("INSERT INTO [Transaction] (AccountNumber, Isbn, Action, DateTimeChecked) VALUES (@AccountNumber, @Isbn, 'Check In', GETDATE())", connect))
+                {
+                    cmdInsertTransaction.Parameters.AddWithValue("@AccountNumber", accountNumber);
+                    cmdInsertTransaction.Parameters.AddWithValue("@Isbn", isbn);
+
+                    cmdInsertTransaction.ExecuteNonQuery();
+                }
+
+                //Update the IsAvailable column in the BOOK table to true
+                using (SqlCommand cmdUpdateBook = new SqlCommand("UPDATE [BOOK] SET IsAvailable = 1 WHERE Isbn = @Isbn", connect))
+                {
+                    cmdUpdateBook.Parameters.AddWithValue("@Isbn", isbn);
+
+                    cmdUpdateBook.ExecuteNonQuery();
+                }
+
+                return true;
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine(ex.Message);
+            return false;
+        }
+    }
+}
+
